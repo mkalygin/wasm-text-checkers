@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>WebAssembly Checkers</title>
+  <style>
+    body {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      width: 100vw;
+      height: 100vh;
+      margin: 0;
+      padding: 0;
+      font-family: monospace;
+    }
+
+    canvas {
+      width: 400px;
+      height: 400px;
+      border: 2px solid black;
+    }
+  </style>
+</head>
+<body>
+  <h1>WebAssembly Checkers</h1>
+  <canvas width="400" height="400"></canvas>
+
+  <script>
+    const drawBoard = (ctx, size) => {
+      const squareSize = size / 8;
+
+      for (let i = 0; i < 8; ++i) {
+        for (let j = 0; j < 8; ++j) {
+          ctx.fillStyle = (i + j) % 2 === 0 ? 'burlywood' : 'saddlebrown';
+          ctx.fillRect(i * squareSize, j * squareSize, squareSize, squareSize);
+        }
+      }
+    };
+
+    const onModuleLoad = ($canvas, instance) => {
+      const {
+        offsetForPosition,
+        isWhite,
+        isBlack,
+        isCrowned,
+        withCrown,
+        withoutCrown,
+      } = instance.exports;
+
+      const ctx = $canvas.getContext('2d');
+      const size = $canvas.width;
+
+      drawBoard(ctx, size);
+
+      const BLACK = 0b001;
+      const WHITE = 0b010;
+      const CROWNED_BLACK = 0b0101;
+      const CROWNED_WHITE = 0b0110;
+
+      console.log('Offset for (3, 4) is', offsetForPosition(3, 4));
+      console.log('White is white?', isWhite(WHITE));
+      console.log('Black is black?', isBlack(BLACK));
+      console.log('Black is white?', isWhite(BLACK));
+      console.log('Uncrowned white is white?', isWhite(withoutCrown(CROWNED_WHITE)));
+      console.log('Uncrowned black is black?', isBlack(withoutCrown(CROWNED_BLACK)));
+      console.log('Crowned black is crowned?', isCrowned(CROWNED_BLACK));
+      console.log('Crowned white is crowned?', isCrowned(CROWNED_WHITE));
+    };
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const $canvas = document.querySelector('canvas');
+
+      fetch('/checkers.wasm')
+        .then(response => response.arrayBuffer())
+        .then(bytes => WebAssembly.instantiate(bytes))
+        .then(({ instance }) => onModuleLoad($canvas, instance));
+    });
+  </script>
+</body>
+</html>
