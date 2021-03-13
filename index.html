@@ -48,6 +48,10 @@
         withoutCrown,
         getPiece,
         setPiece,
+        isCurrentPlayerPiece,
+        getCurrentPlayer,
+        setCurrentPlayer,
+        toggleCurrentPlayer,
       } = instance.exports;
 
       const ctx = $canvas.getContext('2d');
@@ -72,6 +76,14 @@
       console.log('No piece at (3, 4)', getPiece(3, 4));
       setPiece(3, 4, CROWNED_WHITE);
       console.log('White crowned piece at (3, 4)', isCrowned(getPiece(3, 4)) && isWhite(getPiece(3, 4)));
+
+      console.log('Current player is black?', isBlack(getCurrentPlayer()));
+      console.log('Black is current player piece?', isCurrentPlayerPiece(BLACK));
+      console.log('Crowned black is current player piece?', isCurrentPlayerPiece(CROWNED_BLACK));
+      toggleCurrentPlayer();
+      console.log('Current player is white?', isWhite(getCurrentPlayer()));
+      console.log('White is current player piece?', isCurrentPlayerPiece(WHITE));
+      console.log('Crowned white is current player piece?', isCurrentPlayerPiece(CROWNED_WHITE));
     };
 
     document.addEventListener('DOMContentLoaded', () => {

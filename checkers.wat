@@ -26,6 +26,7 @@
   (global $WHITE i32 (i32.const 2))
   (global $BLACK_OR_WHITE i32 (i32.const 3))
   (global $CROWN i32 (i32.const 4))
+  (global $current_player (mut i32) (i32.const 1))
 
   ;; calculates offset in memory for a given position (x, y)
   (func $offset_for_position (param $x i32) (param $y i32) (result i32)
@@ -104,6 +105,31 @@
       (unreachable)))
   )
 
+  (func $is_current_player_piece (param $piece i32) (result i32)
+    (i32.eq
+      (i32.and
+        (call $get_current_player)
+        (get_local $piece))
+      (call $get_current_player))
+  )
+
+  (func $get_current_player (result i32)
+    (get_global $current_player)
+  )
+
+  (func $set_current_player (param $player i32)
+    (set_global $current_player (get_local $player))
+  )
+
+  (func $toggle_current_player
+    (if
+      (i32.eq (call $get_current_player) (get_global $BLACK))
+    (then
+      (call $set_current_player (get_global $WHITE)))
+    (else
+      (call $set_current_player (get_global $BLACK))))
+  )
+
   (export "offsetForPosition" (func $offset_for_position))
   (export "isCrowned" (func $is_crowned))
   (export "isBlack" (func $is_black))
@@ -112,4 +138,8 @@
   (export "withoutCrown" (func $without_crown))
   (export "getPiece" (func $get_piece))
   (export "setPiece" (func $set_piece))
+  (export "isCurrentPlayerPiece" (func $is_current_player_piece))
+  (export "getCurrentPlayer" (func $get_current_player))
+  (export "setCurrentPlayer" (func $set_current_player))
+  (export "toggleCurrentPlayer" (func $toggle_current_player))
 )
