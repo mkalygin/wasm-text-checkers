@@ -52,6 +52,8 @@
         getCurrentPlayer,
         setCurrentPlayer,
         toggleCurrentPlayer,
+        shouldCrownPiece,
+        crownPiece,
       } = instance.exports;
 
       const ctx = $canvas.getContext('2d');
@@ -84,6 +86,34 @@
       console.log('Current player is white?', isWhite(getCurrentPlayer()));
       console.log('White is current player piece?', isCurrentPlayerPiece(WHITE));
       console.log('Crowned white is current player piece?', isCurrentPlayerPiece(CROWNED_WHITE));
+
+      setPiece(0, 7, WHITE);
+      setPiece(1, 7, BLACK);
+      setPiece(0, 6, WHITE);
+      setPiece(1, 6, BLACK);
+
+      console.log('Should crown a white piece at (0, 7)?', shouldCrownPiece(0, 7));
+      console.log('Should crown a black piece at (1, 7)?', shouldCrownPiece(1, 7));
+      console.log('Should crown a white piece at (0, 6)?', shouldCrownPiece(0, 6));
+      console.log('Should crown a black piece at (1, 6)?', shouldCrownPiece(1, 6));
+
+      console.log('White crowned piece at (0, 7)?', isCrowned(getPiece(0, 7)));
+      crownPiece(0, 7);
+      console.log('White crowned piece at (0, 7)?', isCrowned(getPiece(0, 7)));
+
+      setPiece(0, 0, BLACK);
+      setPiece(1, 0, WHITE);
+      setPiece(0, 1, BLACK);
+      setPiece(1, 1, WHITE);
+
+      console.log('Should crown a black piece at (0, 0)?', shouldCrownPiece(0, 0));
+      console.log('Should crown a white piece at (1, 0)?', shouldCrownPiece(1, 0));
+      console.log('Should crown a black piece at (0, 1)?', shouldCrownPiece(0, 1));
+      console.log('Should crown a white piece at (1, 1)?', shouldCrownPiece(1, 1));
+
+      console.log('Black crowned piece at (0, 0)?', isCrowned(getPiece(0, 0)));
+      crownPiece(0, 0);
+      console.log('Black crowned piece at (0, 0)?', isCrowned(getPiece(0, 0)));
     };
 
     document.addEventListener('DOMContentLoaded', () => {
