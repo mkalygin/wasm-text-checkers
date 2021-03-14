@@ -23,7 +23,6 @@
       width: 400px;
       height: 400px;
       border: 2px solid black;
-      background: green;
     }
   </style>
 </head>
@@ -197,6 +196,7 @@
             }
           }
 
+          $canvas.style.background = 'green';
           $turn.innerText = getCurrentPlayer() === 1 ? 'Black' : 'White';
         });
       };
