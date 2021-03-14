@@ -8,6 +8,11 @@
 ;; https://evilmartians.com/chronicles/hands-on-webassembly-try-the-basics
 
 (module
+  (import "events" "piecemoved"
+    (func $notify_piecemoved (param $from_x i32) (param $from_y i32) (param $to_x i32) (param $to_y i32)))
+  (import "events" "piececrowned"
+    (func $notify_piececrowned (param $x i32) (param $y i32)))
+
   ;; 8x8 i32 linear board
   ;; 4 bytes per square
   ;; 8 * 4 = 32 bytes per row
@@ -22,6 +27,7 @@
   ;; 0001 - occupied by black
   ;; 0010 - occupied by white
   ;; 0101 - occupied by crowned black
+  (global $EMPTY i32 (i32.const 0))
   (global $BLACK i32 (i32.const 1))
   (global $WHITE i32 (i32.const 2))
   (global $BLACK_OR_WHITE i32 (i32.const 3))
@@ -158,6 +164,125 @@
     (set_local $piece (call $with_crown (get_local $piece)))
 
     (call $set_piece (get_local $x) (get_local $y) (get_local $piece))
+
+    (call $notify_piececrowned (get_local $x) (get_local $y))
+  )
+
+  ;; a piece can move by 1 square in any direction if the target position
+  ;; is not occupied and the piece belongs to the current player
+  (func $is_valid_move (param $from_x i32) (param $from_y i32) (param $to_x i32) (param $to_y i32) (result i32)
+    (local $piece i32)
+    (local $target i32)
+
+    (set_local $piece (call $get_piece (get_local $from_x) (get_local $from_y)))
+    (set_local $target (call $get_piece (get_local $to_x) (get_local $to_y)))
+
+    (i32.and
+      (call $is_valid_move_distance
+        (get_local $from_x) (get_local $from_y)
+        (get_local $to_x) (get_local $to_y))
+      (i32.and
+        (call $is_current_player_piece (get_local $piece))
+        (i32.eq (get_local $target) (get_global $EMPTY))))
+  )
+
+  (func $is_valid_move_distance (param $from_x i32) (param $from_y i32) (param $to_x i32) (param $to_y i32) (result i32)
+    (local $diff_x i32)
+    (local $diff_y i32)
+
+    (set_local $diff_x (i32.sub (get_local $from_x) (get_local $to_x)))
+    (set_local $diff_y (i32.sub (get_local $from_y) (get_local $to_y)))
+
+    (i32.and
+      (i32.and
+        (i32.ge_s (get_local $diff_x) (i32.const -1))
+        (i32.le_s (get_local $diff_x) (i32.const 1)))
+      (i32.and
+        (i32.ge_s (get_local $diff_y) (i32.const -1))
+        (i32.le_s (get_local $diff_y) (i32.const 1))))
+  )
+
+  ;; moves a piece at a given coordinated if possible
+  (func $move_piece (param $from_x i32) (param $from_y i32) (param $to_x i32) (param $to_y i32) (result i32)
+    (if (result i32)
+      (call $is_valid_move
+        (get_local $from_x) (get_local $from_y)
+        (get_local $to_x) (get_local $to_y))
+    (then
+      (call $perform_piece_move
+        (get_local $from_x) (get_local $from_y)
+        (get_local $to_x) (get_local $to_y)))
+    (else
+      (i32.const 0)))
+  )
+
+  (func $perform_piece_move (param $from_x i32) (param $from_y i32) (param $to_x i32) (param $to_y i32) (result i32)
+    (local $piece i32)
+
+    (set_local $piece (call $get_piece (get_local $from_x) (get_local $from_y)))
+    (call $set_piece (get_local $to_x) (get_local $to_y) (get_local $piece))
+    (call $set_piece (get_local $from_x) (get_local $from_y) (get_global $EMPTY))
+
+    (if
+      (call $should_crown_piece (get_local $to_x) (get_local $to_y))
+    (then
+      (call $crown_piece (get_local $to_x) (get_local $to_y))))
+
+    (call $notify_piecemoved (get_local $from_x) (get_local $from_y) (get_local $to_x) (get_local $to_y))
+
+    (call $toggle_current_player)
+
+    (i32.const 1)
+  )
+
+  (func $init_board
+    (local $x i32)
+    (local $y i32)
+
+    ;; reset all squares
+    (set_local $x (i32.const 0))
+
+    (loop $x_loop
+      (set_local $y (i32.const 0))
+
+      (loop $y_loop
+        (call $set_piece (get_local $x) (get_local $y) (get_global $EMPTY))
+        (set_local $y (i32.add (get_local $y) (i32.const 1)))
+        (br_if $y_loop (i32.le_s (get_local $y) (i32.const 7))))
+
+      (set_local $x (i32.add (get_local $x) (i32.const 1)))
+      (br_if $x_loop (i32.le_s (get_local $x) (i32.const 7))))
+
+    ;; set 12 white pieces
+    (call $set_piece (i32.const 1) (i32.const 0) (get_global $WHITE))
+    (call $set_piece (i32.const 3) (i32.const 0) (get_global $WHITE))
+    (call $set_piece (i32.const 5) (i32.const 0) (get_global $WHITE))
+    (call $set_piece (i32.const 7) (i32.const 0) (get_global $WHITE))
+    (call $set_piece (i32.const 0) (i32.const 1) (get_global $WHITE))
+    (call $set_piece (i32.const 2) (i32.const 1) (get_global $WHITE))
+    (call $set_piece (i32.const 4) (i32.const 1) (get_global $WHITE))
+    (call $set_piece (i32.const 6) (i32.const 1) (get_global $WHITE))
+    (call $set_piece (i32.const 1) (i32.const 2) (get_global $WHITE))
+    (call $set_piece (i32.const 3) (i32.const 2) (get_global $WHITE))
+    (call $set_piece (i32.const 5) (i32.const 2) (get_global $WHITE))
+    (call $set_piece (i32.const 7) (i32.const 2) (get_global $WHITE))
+
+    ;; set 12 black pieces
+    (call $set_piece (i32.const 0) (i32.const 7) (get_global $BLACK))
+    (call $set_piece (i32.const 2) (i32.const 7) (get_global $BLACK))
+    (call $set_piece (i32.const 4) (i32.const 7) (get_global $BLACK))
+    (call $set_piece (i32.const 6) (i32.const 7) (get_global $BLACK))
+    (call $set_piece (i32.const 1) (i32.const 6) (get_global $BLACK))
+    (call $set_piece (i32.const 3) (i32.const 6) (get_global $BLACK))
+    (call $set_piece (i32.const 5) (i32.const 6) (get_global $BLACK))
+    (call $set_piece (i32.const 7) (i32.const 6) (get_global $BLACK))
+    (call $set_piece (i32.const 0) (i32.const 5) (get_global $BLACK))
+    (call $set_piece (i32.const 2) (i32.const 5) (get_global $BLACK))
+    (call $set_piece (i32.const 4) (i32.const 5) (get_global $BLACK))
+    (call $set_piece (i32.const 6) (i32.const 5) (get_global $BLACK))
+
+    ;; set current player to black
+    (call $set_current_player (get_global $BLACK))
   )
 
   (export "offsetForPosition" (func $offset_for_position))
@@ -174,4 +299,10 @@
   (export "toggleCurrentPlayer" (func $toggle_current_player))
   (export "shouldCrownPiece" (func $should_crown_piece))
   (export "crownPiece" (func $crown_piece))
+  (export "isValidMove" (func $is_valid_move))
+  (export "isValidMoveDistance" (func $is_valid_move_distance))
+  (export "movePiece" (func $move_piece))
+  (export "performPieceMove" (func $perform_piece_move))
+  (export "initBoard" (func $init_board))
+  (export "memory" (memory $mem))
 )

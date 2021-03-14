@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>WebAssembly Checkers</title>
+  <title>WebAssembly Text Demo</title>
   <style>
     body {
       display: flex;
@@ -15,30 +15,31 @@
       font-family: monospace;
     }
 
+    h1 {
+      margin-bottom: 0.2rem;
+    }
+
     canvas {
       width: 400px;
       height: 400px;
       border: 2px solid black;
+      background: green;
     }
   </style>
 </head>
 <body>
-  <h1>WebAssembly Checkers</h1>
+  <h1>WebAssembly Text Demo</h1>
+  <h3>Current Turn: <span>Black</span></h3>
   <canvas width="400" height="400"></canvas>
 
   <script>
-    const drawBoard = (ctx, size) => {
-      const squareSize = size / 8;
+    const EMPTY = 0b0000;
+    const BLACK = 0b0001;
+    const WHITE = 0b0010;
+    const CROWNED_BLACK = 0b0101;
+    const CROWNED_WHITE = 0b0110;
 
-      for (let i = 0; i < 8; ++i) {
-        for (let j = 0; j < 8; ++j) {
-          ctx.fillStyle = (i + j) % 2 === 0 ? 'burlywood' : 'saddlebrown';
-          ctx.fillRect(i * squareSize, j * squareSize, squareSize, squareSize);
-        }
-      }
-    };
-
-    const onModuleLoad = ($canvas, instance) => {
+    const runTests = instance => {
       const {
         offsetForPosition,
         isWhite,
@@ -55,16 +56,6 @@
         shouldCrownPiece,
         crownPiece,
       } = instance.exports;
-
-      const ctx = $canvas.getContext('2d');
-      const size = $canvas.width;
-
-      drawBoard(ctx, size);
-
-      const BLACK = 0b001;
-      const WHITE = 0b010;
-      const CROWNED_BLACK = 0b0101;
-      const CROWNED_WHITE = 0b0110;
 
       console.log('Offset for (3, 4) is', offsetForPosition(3, 4));
       console.log('White is white?', isWhite(WHITE));
@@ -114,15 +105,158 @@
       console.log('Black crowned piece at (0, 0)?', isCrowned(getPiece(0, 0)));
       crownPiece(0, 0);
       console.log('Black crowned piece at (0, 0)?', isCrowned(getPiece(0, 0)));
+    }
+
+    const onModuleLoad = (instance) => {
+      runTests(instance);
+
+      const $canvas = document.querySelector('canvas');
+      const $turn = document.querySelector('h3 span');
+
+      const ctx = $canvas.getContext('2d');
+      const BOARD_SIZE = $canvas.width;
+      const SQUARE_SIZE = BOARD_SIZE / 8;
+      const PIECE_SIZE = SQUARE_SIZE / 3;
+      const SELECTION_OPACITY = 0.6;
+      let selected = null;
+
+      const {
+        isWhite,
+        isBlack,
+        isCrowned,
+        getPiece,
+        isCurrentPlayerPiece,
+        getCurrentPlayer,
+        movePiece,
+        initBoard,
+      } = instance.exports;
+
+      const isSelectedSquare = (x, y) => {
+        if (!selected) return false;
+
+        return isSelectedPiece(x, y) || !getPiece(x, y) &&
+          Math.abs(x - selected.x) <= 1 && Math.abs(y - selected.y) <= 1;
+      };
+
+      const isSelectedPiece = (x, y) => {
+        if (!selected) return false;
+
+        return x === selected.x && y === selected.y;
+      };
+
+      const drawSquare = (x, y) => {
+        const isSelected = isSelectedSquare(x, y);
+        const color = (x + y) % 2 === 0 ? 'burlywood' : 'saddlebrown';
+        const sx = x * SQUARE_SIZE;
+        const sy = y * SQUARE_SIZE;
+
+        ctx.fillStyle = color;
+        ctx.globalAlpha = isSelected ? SELECTION_OPACITY : 1;
+        ctx.fillRect(sx, sy, SQUARE_SIZE, SQUARE_SIZE);
+        ctx.globalAlpha = 1;
+      };
+
+      const drawPiece = (x, y) => {
+        const piece = getPiece(x, y);
+
+        if (!piece) return;
+
+        const isSelected = isSelectedPiece(x, y);
+        const color = isBlack(piece) ? 'black' : 'white';
+        const stroke = isSelected ? 'rgba(0, 128, 0, 0.6)' : 'transparent';
+        const crown = isCrowned(piece);
+        const px = (x + 0.5) * SQUARE_SIZE;
+        const py = (y + 0.5) * SQUARE_SIZE;
+
+        ctx.fillStyle = color;
+        ctx.strokeStyle = stroke;
+        ctx.beginPath();
+        ctx.arc(px, py, PIECE_SIZE, 0, 2 * Math.PI);
+        ctx.closePath();
+        ctx.fill();
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        if (!crown) return;
+
+        ctx.fillStyle = 'gold';
+        ctx.beginPath();
+        ctx.arc(px, py, PIECE_SIZE / 2, 0, 2 * Math.PI);
+        ctx.closePath();
+        ctx.fill();
+      };
+
+      const drawBoard = () => {
+        requestAnimationFrame(() => {
+          ctx.clearRect(0, 0, BOARD_SIZE, BOARD_SIZE);
+
+          for (let x = 0; x < 8; ++x) {
+            for (let y = 0; y < 8; ++y) {
+              drawSquare(x, y);
+              drawPiece(x, y);
+            }
+          }
+
+          $turn.innerText = getCurrentPlayer() === 1 ? 'Black' : 'White';
+        });
+      };
+
+      const setSelection = (x, y) => {
+        selected = { x, y };
+      };
+
+      const resetSelection = () => {
+        selected = null;
+      };
+
+      const handleSelection = (x, y) => {
+        const piece = getPiece(x, y);
+        const isSelected = !!selected;
+
+        if (piece && !isCurrentPlayerPiece(piece)) return;
+        if (piece && !isSelected) setSelection(x, y);
+        if (!piece && isSelected) movePiece(selected.x, selected.y, x, y) && resetSelection();
+      };
+
+      const onBodyClick = ({ target, offsetX, offsetY }) => {
+        if (target && target.tagName === 'CANVAS') {
+          const x = Math.floor(offsetX / SQUARE_SIZE);
+          const y = Math.floor(offsetY / SQUARE_SIZE);
+
+          handleSelection(x, y);
+        } else {
+          resetSelection();
+        }
+
+        drawBoard();
+      };
+
+      initBoard();
+      drawBoard();
+
+      document.addEventListener('click', onBodyClick);
+    };
+
+    const onPieceMoved = (fromX, fromY, toX, toY) => {
+      console.log(`Moved piece from (${fromX},${fromY}) to (${toX},${toY})`);
+    };
+
+    const onPieceCrowned = (x, y) => {
+      console.log(`Crowned piece at (${x},${y})`);
     };
 
     document.addEventListener('DOMContentLoaded', () => {
-      const $canvas = document.querySelector('canvas');
+      const moduleImport = {
+        events: {
+          piecemoved: onPieceMoved,
+          piececrowned: onPieceCrowned,
+        },
+      };
 
       fetch('/checkers.wasm')
         .then(response => response.arrayBuffer())
-        .then(bytes => WebAssembly.instantiate(bytes))
-        .then(({ instance }) => onModuleLoad($canvas, instance));
+        .then(bytes => WebAssembly.instantiate(bytes, moduleImport))
+        .then(({ instance }) => onModuleLoad(instance));
     });
   </script>
 </body>
