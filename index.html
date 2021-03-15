@@ -31,6 +31,7 @@
       height: 100vh;
       margin: 0;
       padding: 0;
+      text-align: center;
       font-family: monospace;
     }
 
@@ -39,8 +40,9 @@
     }
 
     canvas {
-      width: 400px;
-      height: 400px;
+      width: 90%;
+      max-width: 400px;
+      max-height: 400px;
       border: 2px solid black;
     }
   </style>
@@ -50,7 +52,7 @@
 
   <h1>WebAssembly Text Checkers</h1>
   <h3>Current Turn: <span>Black</span></h3>
-  <canvas width="400" height="400"></canvas>
+  <canvas></canvas>
 
   <script>
     const EMPTY = 0b0000;
@@ -208,6 +210,10 @@
 
       const drawBoard = () => {
         requestAnimationFrame(() => {
+          $canvas.style.background = 'green';
+          $canvas.width = BOARD_SIZE;
+          $canvas.height = BOARD_SIZE;
+
           ctx.clearRect(0, 0, BOARD_SIZE, BOARD_SIZE);
 
           for (let x = 0; x < 8; ++x) {
@@ -217,7 +223,6 @@
             }
           }
 
-          $canvas.style.background = 'green';
           $turn.innerText = getCurrentPlayer() === 1 ? 'Black' : 'White';
         });
       };
