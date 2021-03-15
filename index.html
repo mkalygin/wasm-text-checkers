@@ -40,7 +40,8 @@
     }
 
     canvas {
-      width: 90%;
+      width: 90vw;
+      height: 90vw;
       max-width: 400px;
       max-height: 400px;
       border: 2px solid black;
@@ -136,7 +137,7 @@
       const $turn = document.querySelector('h3 span');
 
       const ctx = $canvas.getContext('2d');
-      const BOARD_SIZE = $canvas.width;
+      const BOARD_SIZE = $canvas.offsetWidth;
       const SQUARE_SIZE = BOARD_SIZE / 8;
       const PIECE_SIZE = SQUARE_SIZE / 3;
       const SELECTION_OPACITY = 0.6;
